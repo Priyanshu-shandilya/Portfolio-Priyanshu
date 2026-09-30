@@ -19,12 +19,6 @@ import LeetCodeStats from "@/components/leetcode-stats";
 import { GamesSection } from "@/components/ui/games-section";
 
 import {
-  Terminal,
-  TypingAnimation,
-  AnimatedSpan,
-} from "@/components/ui/terminal";
-
-import {
   Home as HomeIcon,
   User,
   Briefcase,
@@ -42,7 +36,38 @@ const navItems = [
   { name: "Contact", link: "#contact", icon: <Mail size={16} /> },
 ];
 
-const BOOT_DURATION_MS = 3400;
+/* ------------------------------------------------------------------ */
+/* WELCOME INTRO — cycles through "welcome" in many languages and     */
+/* finishes on "नमस्ते" (Namaste) before the portfolio opens.          */
+/* The LAST item in this array is always the final greeting.          */
+/* ------------------------------------------------------------------ */
+type Greeting = { text: string; lang: string; dir?: "rtl" | "ltr" };
+
+const GREETINGS: Greeting[] = [
+  { text: "Welcome", lang: "en" },
+  { text: "Bienvenue", lang: "fr" },
+  { text: "Bienvenido", lang: "es" },
+  { text: "Willkommen", lang: "de" },
+  { text: "ようこそ", lang: "ja" },
+  { text: "欢迎", lang: "zh" },
+  { text: "환영합니다", lang: "ko" },
+  { text: "Добро пожаловать", lang: "ru" },
+  { text: "أهلاً وسهلاً", lang: "ar", dir: "rtl" },
+  { text: "Benvenuto", lang: "it" },
+  { text: "Bem-vindo", lang: "pt" },
+  { text: "Καλώς ήρθατε", lang: "el" },
+  { text: "Karibu", lang: "sw" },
+  { text: "Hoş geldiniz", lang: "tr" },
+  { text: "स्वागत है", lang: "hi" },
+  { text: "नमस्ते", lang: "hi" }, // ← final greeting
+];
+
+const LAST_INDEX = GREETINGS.length - 1;
+const GREETING_INTERVAL_MS = 320; // time each greeting stays on screen
+const NAMASTE_HOLD_MS = 1500; // how long "नमस्ते" is held before the exit animation
+const EXIT_MS = 1100; // exit animation length before the portfolio opens
+
+const HINDI_FONT = "'Noto Serif Devanagari', 'Playfair Display', serif";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
@@ -70,22 +95,54 @@ const photoReveal = {
 export default function Home() {
   const [booted, setBooted] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const [greetingIndex, setGreetingIndex] = useState(0);
+  const [leaving, setLeaving] = useState(false);
   const reduceMotion = useReducedMotion();
 
+  // Lock scrolling while the intro is playing
   useEffect(() => {
     document.body.style.overflow = booted ? "" : "hidden";
-    if (booted) return;
-    const timeout = setTimeout(() => setBooted(true), BOOT_DURATION_MS);
     return () => {
-      clearTimeout(timeout);
       document.body.style.overflow = "";
     };
   }, [booted]);
 
+  // Intro sequence: greetings -> hold on Namaste -> exit animation -> open site
+  useEffect(() => {
+    if (booted) return;
+
+    // Respect reduced-motion: skip straight to Namaste
+    if (reduceMotion && greetingIndex < LAST_INDEX) {
+      setGreetingIndex(LAST_INDEX);
+      return;
+    }
+
+    let timeout: ReturnType<typeof setTimeout>;
+
+    if (greetingIndex < LAST_INDEX) {
+      timeout = setTimeout(
+        () => setGreetingIndex((i) => i + 1),
+        GREETING_INTERVAL_MS
+      );
+    } else if (!leaving) {
+      timeout = setTimeout(
+        () => setLeaving(true),
+        reduceMotion ? 900 : NAMASTE_HOLD_MS
+      );
+    } else {
+      timeout = setTimeout(() => setBooted(true), reduceMotion ? 300 : EXIT_MS);
+    }
+
+    return () => clearTimeout(timeout);
+  }, [greetingIndex, leaving, booted, reduceMotion]);
+
+  const current = GREETINGS[greetingIndex];
+  const isFinal = greetingIndex === LAST_INDEX;
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#FFFFFF]">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,600;1,700&family=Inter:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,600;1,700&family=Inter:wght@400;500;600&family=Noto+Serif+Devanagari:wght@500;700&display=swap');
         .font-elegant { font-family: 'Playfair Display', serif; }
         .font-elegant-italic { font-family: 'Playfair Display', serif; font-style: italic; }
         .font-body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
@@ -104,29 +161,100 @@ export default function Home() {
         }
       `}</style>
 
+      {/* WELCOME INTRO */}
       <AnimatePresence>
         {!booted && (
           <motion.div
-            key="boot"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-[#FFFFFF] px-6"
+            key="welcome-intro"
+            initial={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "-100%" }}
+            transition={{ duration: 0.9, ease: [0.76, 0, 0.24, 1] }}
+            className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#FFFFFF] px-6"
           >
-            <Terminal className="w-full max-w-md border-black/10 bg-black/[0.02] backdrop-blur-xl">
-              <TypingAnimation duration={30} className="text-gray-700">
-                $ npm run dev
-              </TypingAnimation>
-              <AnimatedSpan className="text-emerald-600">
-                ✔ Compiled successfully
-              </AnimatedSpan>
-              <TypingAnimation duration={30} className="text-gray-700">
-                $ Loading portfolio...
-              </TypingAnimation>
-              <AnimatedSpan className="text-emerald-600">
-                ✔ Done — welcome.
-              </AnimatedSpan>
-            </Terminal>
+            {/* soft ambient glow */}
+            <div className="pointer-events-none absolute h-[28rem] w-[28rem] rounded-full bg-[#7C5CE0]/10 blur-[100px]" />
+
+            {/* expanding rings during the exit animation */}
+            {leaving && !reduceMotion && (
+              <>
+                <motion.div
+                  initial={{ scale: 0.2, opacity: 0.6 }}
+                  animate={{ scale: 4, opacity: 0 }}
+                  transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+                  className="pointer-events-none absolute h-64 w-64 rounded-full border border-[#7C5CE0]/40"
+                />
+                <motion.div
+                  initial={{ scale: 0.2, opacity: 0.5 }}
+                  animate={{ scale: 3, opacity: 0 }}
+                  transition={{
+                    duration: 1.1,
+                    ease: [0.22, 1, 0.36, 1],
+                    delay: 0.12,
+                  }}
+                  className="pointer-events-none absolute h-64 w-64 rounded-full border border-[#7C5CE0]/25"
+                />
+              </>
+            )}
+
+            <motion.div
+              animate={
+                leaving && !reduceMotion
+                  ? { scale: 1.12, opacity: 0, filter: "blur(6px)" }
+                  : { scale: 1, opacity: 1, filter: "blur(0px)" }
+              }
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              className="relative flex flex-col items-center text-center"
+            >
+              <AnimatePresence mode="wait">
+                <motion.h1
+                  key={greetingIndex}
+                  lang={current.lang}
+                  dir={current.dir ?? "ltr"}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -14 }}
+                  transition={{
+                    duration: isFinal ? 0.7 : 0.16,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  style={isFinal || current.lang === "hi" ? { fontFamily: HINDI_FONT } : undefined}
+                  className={
+                    isFinal
+                      ? "text-6xl font-bold leading-tight text-[#7C5CE0] sm:text-7xl md:text-8xl"
+                      : "font-elegant text-4xl leading-tight text-[#1A1A1A] sm:text-5xl md:text-6xl"
+                  }
+                >
+                  {current.text}
+                </motion.h1>
+              </AnimatePresence>
+
+              {/* underline draws in under the final "नमस्ते" */}
+              <motion.div
+                initial={{ scaleX: 0, opacity: 0 }}
+                animate={
+                  isFinal ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }
+                }
+                transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+                style={{ originX: 0.5 }}
+                className="mt-4 h-[2px] w-24 rounded-full bg-[#7C5CE0]"
+              />
+
+              {/* small progress dots */}
+              <div className="mt-8 flex items-center gap-1.5">
+                {GREETINGS.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      i === greetingIndex
+                        ? "w-5 bg-[#7C5CE0]"
+                        : i < greetingIndex
+                        ? "w-1 bg-[#7C5CE0]/40"
+                        : "w-1 bg-black/10"
+                    }`}
+                  />
+                ))}
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
