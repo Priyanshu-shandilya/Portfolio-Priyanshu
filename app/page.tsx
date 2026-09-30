@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
+import type { Variants } from "motion/react";
+
 import { ContactSection } from "@/components/ui/ContactSection";
 
 import { RainbowButton } from "@/components/ui/rainbow-button";
